@@ -33,12 +33,6 @@ class _MapScreenState extends State<MapScreen> {
   int _unreadCount = 0;
   bool _showLegend = false;
 
-  // ── Search ────────────────────────────────────────────────────────
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocus = FocusNode();
-  List<ChargerModel> _searchResults = [];
-  bool _showSearchResults = false;
-
   // Filters
   String _filterType = 'All';
   bool _filterAvailable = false;
@@ -86,66 +80,6 @@ class _MapScreenState extends State<MapScreen> {
     _getUserLocation();
     _fetchChargers();
     _loadUnreadCount();
-
-    // Dismiss search results when focus is lost
-    _searchFocus.addListener(() {
-      if (!_searchFocus.hasFocus) {
-        setState(() => _showSearchResults = false);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _searchFocus.dispose();
-    super.dispose();
-  }
-
-  // ── Search logic ─────────────────────────────────────────────────
-  void _onSearchChanged(String query) {
-    final q = query.trim().toLowerCase();
-    if (q.isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _showSearchResults = false;
-      });
-      return;
-    }
-    final results = _chargers.where((c) {
-      return c.name.toLowerCase().contains(q) ||
-          c.address.toLowerCase().contains(q) ||
-          c.ownerName.toLowerCase().contains(q);
-    }).toList();
-
-    setState(() {
-      _searchResults = results;
-      _showSearchResults = true;
-    });
-  }
-
-  void _selectSearchResult(ChargerModel charger) {
-    // Move map to charger location and show info card
-    _mapController.move(
-      LatLng(charger.latitude, charger.longitude),
-      15.0,
-    );
-    setState(() {
-      _selectedCharger = charger;
-      _showSearchResults = false;
-      _showLegend = false;
-    });
-    _searchController.clear();
-    _searchFocus.unfocus();
-  }
-
-  void _clearSearch() {
-    _searchController.clear();
-    _searchFocus.unfocus();
-    setState(() {
-      _searchResults = [];
-      _showSearchResults = false;
-    });
   }
 
   Future<void> _loadUnreadCount() async {
@@ -285,559 +219,357 @@ class _MapScreenState extends State<MapScreen> {
           ),
         ],
       ),
-      body: GestureDetector(
-        // Tap anywhere on the map body to dismiss search + keyboard
-        onTap: () {
-          _searchFocus.unfocus();
-          setState(() => _showSearchResults = false);
-        },
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
-            // ── Map ─────────────────────────────────────────────────
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _currentLocation,
-                initialZoom: 10.0,
-                onTap: (_, __) => setState(() {
-                  _selectedCharger = null;
-                  _showLegend = false;
-                  _showSearchResults = false;
-                  _searchFocus.unfocus();
-                }),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.powershare_sl',
-                ),
-                MarkerLayer(
-                  markers: [
-                    // User location marker
-                    Marker(
-                      point: _currentLocation,
-                      width: 50, height: 50,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.my_location,
-                            color: Colors.blue, size: 30),
-                      ),
-                    ),
-                    // Filtered charger markers
-                    ..._filteredChargers.map((charger) => Marker(
-                          point: LatLng(charger.latitude, charger.longitude),
-                          width: 48, height: 48,
-                          child: GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedCharger = charger;
-                              _showSearchResults = false;
-                              _searchFocus.unfocus();
-                            }),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: _chargerColor(charger),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: Colors.white, width: 2.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _chargerColor(charger)
-                                        .withOpacity(0.5),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(_chargerTypeIcon(charger),
-                                  color: Colors.white, size: 22),
-                            ),
-                          ),
-                        )),
-                  ],
-                ),
-              ],
+      body: Stack(
+        children: [
+          // Map
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _currentLocation,
+              initialZoom: 10.0,
+              onTap: (_, __) => setState(() {
+                _selectedCharger = null;
+                _showLegend = false;
+              }),
             ),
-
-            // ── Search bar ──────────────────────────────────────────
-            Positioned(
-              top: 10, left: 12, right: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Search input
-                  Container(
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      focusNode: _searchFocus,
-                      onChanged: _onSearchChanged,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Search chargers by name or address...',
-                        hintStyle: TextStyle(
-                            fontSize: 13, color: Colors.grey.shade400),
-                        prefixIcon: const Icon(Icons.search,
-                            color: Color(0xFF1E3A5F), size: 20),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.close,
-                                    size: 18, color: Colors.grey),
-                                onPressed: _clearSearch,
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 13, horizontal: 4),
+            children: [
+              TileLayer(
+                urlTemplate:
+                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.powershare_sl',
+              ),
+              MarkerLayer(
+                markers: [
+                  // User location
+                  Marker(
+                    point: _currentLocation,
+                    width: 50, height: 50,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.2),
+                        shape: BoxShape.circle,
                       ),
+                      child: const Icon(Icons.my_location,
+                          color: Colors.blue, size: 30),
                     ),
                   ),
-
-                  // Search results dropdown
-                  if (_showSearchResults) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 260),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: _searchResults.isEmpty
-                          ? const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.search_off,
-                                      color: Colors.grey, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('No chargers found',
-                                      style: TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 13)),
-                                ],
-                              ),
-                            )
-                          : ListView.separated(
-                              shrinkWrap: true,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 6),
-                              itemCount: _searchResults.length,
-                              separatorBuilder: (_, __) => Divider(
-                                  height: 1,
-                                  color: Colors.grey.shade100,
-                                  indent: 56),
-                              itemBuilder: (context, index) {
-                                final c = _searchResults[index];
-                                return InkWell(
-                                  borderRadius:
-                                      BorderRadius.circular(14),
-                                  onTap: () => _selectSearchResult(c),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
-                                    child: Row(
-                                      children: [
-                                        // Charger type icon
-                                        Container(
-                                          width: 36,
-                                          height: 36,
-                                          decoration: BoxDecoration(
-                                            color: _chargerColor(c)
-                                                .withOpacity(0.15),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            _chargerTypeIcon(c),
-                                            color: _chargerColor(c),
-                                            size: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        // Name + address
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(c.name,
-                                                  style: const TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color:
-                                                          Color(0xFF1E3A5F))),
-                                              const SizedBox(height: 2),
-                                              Text(c.address,
-                                                  style: TextStyle(
-                                                      fontSize: 11,
-                                                      color: Colors
-                                                          .grey.shade600),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        // Price + availability
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              'Rs.${c.pricePerKwh.toInt()}/kWh',
-                                              style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF1E3A5F)),
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: c.isAvailable
-                                                    ? Colors.green
-                                                    : Colors.red,
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                c.isAvailable
-                                                    ? 'Available'
-                                                    : 'Busy',
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 9,
-                                                    fontWeight:
-                                                        FontWeight.w600),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
+                  // Filtered charger markers
+                  ..._filteredChargers.map((charger) => Marker(
+                        point: LatLng(charger.latitude, charger.longitude),
+                        width: 48, height: 48,
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedCharger = charger),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _chargerColor(charger),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white, width: 2.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _chargerColor(charger)
+                                      .withOpacity(0.5),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                    ),
-                  ],
+                            child: Icon(_chargerTypeIcon(charger),
+                                color: Colors.white, size: 22),
+                          ),
+                        ),
+                      )),
                 ],
               ),
-            ),
+            ],
+          ),
 
-            // ── Filter chips bar ────────────────────────────────────
-            // Pushed down by 66px (search bar height 46 + 10 top + 10 gap)
-            Positioned(
-              top: 66, left: 12, right: 80,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _filterChip('All', Colors.grey),
-                    _filterChip('Slow', Colors.orange),
-                    _filterChip('Standard', Colors.blue),
-                    _filterChip('Fast', Colors.green),
-                    _filterChip('Rapid', Colors.purple),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => setState(
-                          () => _filterAvailable = !_filterAvailable),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: _filterAvailable
-                              ? Colors.green
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 4)
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle,
-                                size: 14,
-                                color: _filterAvailable
-                                    ? Colors.white
-                                    : Colors.grey),
-                            const SizedBox(width: 4),
-                            Text('Available',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: _filterAvailable
-                                        ? Colors.white
-                                        : Colors.grey,
-                                    fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Legend button + panel ───────────────────────────────
-            Positioned(
-              top: 66, right: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+          // Filter bar — top
+          Positioned(
+            top: 10, left: 12, right: 80,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
                 children: [
+                  _filterChip('All', Colors.grey),
+                  _filterChip('Slow', Colors.orange),
+                  _filterChip('Standard', Colors.blue),
+                  _filterChip('Fast', Colors.green),
+                  _filterChip('Rapid', Colors.purple),
+                  const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () =>
-                        setState(() => _showLegend = !_showLegend),
+                    onTap: () => setState(
+                        () => _filterAvailable = !_filterAvailable),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 7),
+                          horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E3A5F),
+                        color: _filterAvailable
+                            ? Colors.green
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 6)
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4)
                         ],
                       ),
-                      child: const Icon(Icons.layers,
-                          color: Colors.white, size: 18),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle,
+                              size: 14,
+                              color: _filterAvailable
+                                  ? Colors.white
+                                  : Colors.grey),
+                          const SizedBox(width: 4),
+                          Text('Available',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: _filterAvailable
+                                      ? Colors.white
+                                      : Colors.grey,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
                   ),
-                  if (_showLegend) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10)
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Charger Types',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: Color(0xFF1E3A5F))),
-                          const SizedBox(height: 8),
-                          _legendItem(Colors.orange,
-                              Icons.power_outlined, 'Slow (3.3 kW)'),
-                          _legendItem(Colors.blue,
-                              Icons.ev_station, 'Standard (7.4 kW)'),
-                          _legendItem(
-                              Colors.green, Icons.flash_on, 'Fast (22 kW)'),
-                          _legendItem(
-                              Colors.purple, Icons.bolt, 'Rapid (50 kW)'),
-                          const Divider(height: 12),
-                          _legendItem(
-                              Colors.red, Icons.ev_station, 'Unavailable'),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
+          ),
 
-            // ── Error banner ────────────────────────────────────────
-            if (_chargerError != null)
-              Positioned(
-                top: 112, left: 16, right: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade700,
-                    borderRadius: BorderRadius.circular(10),
+          // Legend button + panel
+          Positioned(
+            top: 10, right: 12,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: () =>
+                      setState(() => _showLegend = !_showLegend),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E3A5F),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 6)
+                      ],
+                    ),
+                    child: const Icon(Icons.layers,
+                        color: Colors.white, size: 18),
                   ),
-                  child: Row(
+                ),
+                if (_showLegend) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10)
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Charger Types',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Color(0xFF1E3A5F))),
+                        const SizedBox(height: 8),
+                        _legendItem(Colors.orange,
+                            Icons.power_outlined, 'Slow (3.3 kW)'),
+                        _legendItem(Colors.blue,
+                            Icons.ev_station, 'Standard (7.4 kW)'),
+                        _legendItem(
+                            Colors.green, Icons.flash_on, 'Fast (22 kW)'),
+                        _legendItem(
+                            Colors.purple, Icons.bolt, 'Rapid (50 kW)'),
+                        const Divider(height: 12),
+                        _legendItem(
+                            Colors.red, Icons.ev_station, 'Unavailable'),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Error banner
+          if (_chargerError != null)
+            Positioned(
+              top: 55, left: 16, right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade700,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline,
+                        color: Colors.white, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_chargerError!,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13)),
+                    ),
+                    TextButton(
+                      onPressed: _fetchChargers,
+                      child: const Text('Retry',
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Charger info card
+          if (_selectedCharger != null)
+            Positioned(
+              bottom: 20, left: 16, right: 16,
+              child: Card(
+                elevation: 12,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline,
-                          color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_chargerError!,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 13)),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _chargerColor(_selectedCharger!)
+                                  .withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              _chargerTypeIcon(_selectedCharger!),
+                              color: _chargerColor(_selectedCharger!),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_selectedCharger!.name,
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold)),
+                                Text(
+                                  '${_chargerTypeLabel(_selectedCharger!)} • ${_selectedCharger!.powerKw} kW',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          _chargerColor(_selectedCharger!),
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: _selectedCharger!.isAvailable
+                                  ? Colors.green
+                                  : Colors.red,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              _selectedCharger!.isAvailable
+                                  ? 'Available'
+                                  : 'Busy',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 11),
+                            ),
+                          ),
+                        ],
                       ),
-                      TextButton(
-                        onPressed: _fetchChargers,
-                        child: const Text('Retry',
-                            style: TextStyle(color: Colors.white)),
+                      const SizedBox(height: 10),
+                      Text(_selectedCharger!.address,
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 12)),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(Icons.star,
+                              color: Colors.amber, size: 14),
+                          Text(' ${_selectedCharger!.rating}',
+                              style: const TextStyle(fontSize: 13)),
+                          const SizedBox(width: 12),
+                          const Icon(Icons.person,
+                              color: Colors.grey, size: 14),
+                          Text(' ${_selectedCharger!.ownerName}',
+                              style: const TextStyle(fontSize: 13)),
+                          const Spacer(),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Rs. ${_selectedCharger!.pricePerKwh.toInt()}/kWh',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E3A5F),
+                                    fontSize: 14),
+                              ),
+                              Text(
+                                '≈ Rs. ${(_selectedCharger!.powerKw * _selectedCharger!.pricePerKwh).toStringAsFixed(0)}/hr',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _selectedCharger!.isAvailable
+                              ? () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => BookingScreen(
+                                          charger: _selectedCharger!),
+                                    ),
+                                  )
+                              : null,
+                          icon: const Icon(Icons.bolt, size: 18),
+                          label: const Text('Book Now'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E3A5F),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-
-            // ── Charger info card ───────────────────────────────────
-            if (_selectedCharger != null)
-              Positioned(
-                bottom: 20, left: 16, right: 16,
-                child: Card(
-                  elevation: 12,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: _chargerColor(_selectedCharger!)
-                                    .withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                _chargerTypeIcon(_selectedCharger!),
-                                color: _chargerColor(_selectedCharger!),
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(_selectedCharger!.name,
-                                      style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold)),
-                                  Text(
-                                    '${_chargerTypeLabel(_selectedCharger!)} • ${_selectedCharger!.powerKw} kW',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: _chargerColor(_selectedCharger!),
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: _selectedCharger!.isAvailable
-                                    ? Colors.green
-                                    : Colors.red,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                _selectedCharger!.isAvailable
-                                    ? 'Available'
-                                    : 'Busy',
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 11),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(_selectedCharger!.address,
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12)),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            const Icon(Icons.star,
-                                color: Colors.amber, size: 14),
-                            Text(' ${_selectedCharger!.rating}',
-                                style: const TextStyle(fontSize: 13)),
-                            const SizedBox(width: 12),
-                            const Icon(Icons.person,
-                                color: Colors.grey, size: 14),
-                            Text(' ${_selectedCharger!.ownerName}',
-                                style: const TextStyle(fontSize: 13)),
-                            const Spacer(),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'Rs. ${_selectedCharger!.pricePerKwh.toInt()}/kWh',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E3A5F),
-                                      fontSize: 14),
-                                ),
-                                Text(
-                                  '≈ Rs. ${(_selectedCharger!.powerKw * _selectedCharger!.pricePerKwh).toStringAsFixed(0)}/hr',
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _selectedCharger!.isAvailable
-                                ? () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => BookingScreen(
-                                            charger: _selectedCharger!),
-                                      ),
-                                    )
-                                : null,
-                            icon: const Icon(Icons.bolt, size: 18),
-                            label: const Text('Book Now'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E3A5F),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+            ),
+        ],
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -877,7 +609,8 @@ class _MapScreenState extends State<MapScreen> {
       onTap: () => setState(() => _filterType = type),
       child: Container(
         margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.white,
           borderRadius: BorderRadius.circular(20),

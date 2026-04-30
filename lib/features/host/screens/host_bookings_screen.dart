@@ -149,7 +149,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen> {
                                 Text('Rs. ${b['totalPrice']?.toInt()}',
                                     style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E3A5F))),
                               ]),
-                              if (status == 'pending' || status == 'pending_confirmation')
+                              if (status == 'pending_confirmation' || status == 'pending_confirmation')
                                 Container(
                                   margin: const EdgeInsets.only(top: 8),
                                   padding: const EdgeInsets.all(8),
