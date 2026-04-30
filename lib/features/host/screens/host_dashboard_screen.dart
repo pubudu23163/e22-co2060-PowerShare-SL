@@ -8,6 +8,7 @@ import '../../auth/screens/role_selection_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
 import 'add_charger_screen.dart';
 import 'host_bookings_screen.dart';
+import 'host_earnings_screen.dart';
 
 class HostDashboardScreen extends StatefulWidget {
   const HostDashboardScreen({super.key});
@@ -107,6 +108,14 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet),
+            tooltip: 'My Earnings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HostEarningsScreen()),
+            ),
+          ),
           // Notification bell with badge
           Stack(children: [
             IconButton(

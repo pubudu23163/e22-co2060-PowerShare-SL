@@ -20,6 +20,15 @@ class ApiService {
     };
   }
 
+  static Future<Map<String, String>> getUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'name': prefs.getString('user_name') ?? '',
+      'email': prefs.getString('user_email') ?? '',
+      'photo': prefs.getString('user_photo') ?? '',
+    };
+  }
+
   // ─── Auth ────────────────────────────────────────────────────────
   static Future<bool> loginWithGoogle({
     required String googleId,
@@ -55,7 +64,7 @@ class ApiService {
     }
   }
 
-  // ─── Chargers ────────────────────────────────────────────────────
+  // ─── Chargers ─────────────────────────────────────────────────────
   static Future<List<ChargerModel>> getChargers() async {
     try {
       final response = await http.get(
@@ -75,7 +84,6 @@ class ApiService {
     }
   }
 
-  // ─── Host — My Chargers ──────────────────────────────────────────
   static Future<List<ChargerModel>> getMyChargers() async {
     try {
       final response = await http.get(
@@ -95,99 +103,6 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> toggleChargerAvailability(String id) async {
-    try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/api/chargers/$id/availability'),
-        headers: await _authHeaders(),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
-    }
-  }
-
-  static Future<Map<String, dynamic>> deleteCharger(String id) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/chargers/$id'),
-        headers: await _authHeaders(),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
-    }
-  }
-
-  // ─── Host — Received Bookings ─────────────────────────────────────
-  static Future<List<dynamic>> getReceivedBookings() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/bookings/received'),
-        headers: await _authHeaders(),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) return data['bookings'];
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // ─── Notifications ────────────────────────────────────────────────
-  static Future<List<dynamic>> getNotifications() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/notifications'),
-        headers: await _authHeaders(),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) return data['notifications'];
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  static Future<int> getUnreadCount() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/notifications/unread-count'),
-        headers: await _authHeaders(),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['count'] ?? 0;
-      }
-      return 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  static Future<void> markNotificationRead(String id) async {
-    try {
-      await http.patch(
-        Uri.parse('$baseUrl/api/notifications/$id/read'),
-        headers: await _authHeaders(),
-      );
-    } catch (_) {}
-  }
-
-  static Future<void> markAllNotificationsRead() async {
-    try {
-      await http.patch(
-        Uri.parse('$baseUrl/api/notifications/read-all'),
-        headers: await _authHeaders(),
-      );
-    } catch (_) {}
-  }
-
-  // ─── Add Charger (Host) ──────────────────────────────────────────
   static Future<Map<String, dynamic>> addCharger({
     required String name,
     required String address,
@@ -223,7 +138,31 @@ class ApiService {
     }
   }
 
-  // ─── Bookings ────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> toggleChargerAvailability(String id) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/chargers/$id/availability'),
+        headers: await _authHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteCharger(String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/chargers/$id'),
+        headers: await _authHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // ─── Bookings ──────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> createBooking({
     required String chargerId,
     required String chargerName,
@@ -275,19 +214,11 @@ class ApiService {
       return [];
     }
   }
-<<<<<<< HEAD
-  // Host earnings fetch
-  static Future<Map<String, dynamic>> getHostEarnings() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/earnings/my'),
-=======
 
   static Future<Map<String, dynamic>> cancelBooking(String id) async {
     try {
       final response = await http.patch(
         Uri.parse('$baseUrl/api/bookings/$id/cancel'),
->>>>>>> 641a76f693e38f5bbea56ee5ec121804e9ed69c2
         headers: await _authHeaders(),
       );
       return jsonDecode(response.body);
@@ -296,8 +227,111 @@ class ApiService {
     }
   }
 
-<<<<<<< HEAD
-  // Mock withdrawal request
+  static Future<List<dynamic>> getReceivedBookings() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/bookings/received'),
+        headers: await _authHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) return data['bookings'];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> acceptBooking(String id) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/bookings/$id/accept'),
+        headers: await _authHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> rejectBooking(String id) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/bookings/$id/reject'),
+        headers: await _authHeaders(),
+        body: jsonEncode({'reason': 'Host declined'}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // ─── Notifications ─────────────────────────────────────────────────
+  static Future<List<dynamic>> getNotifications() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/notifications'),
+        headers: await _authHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) return data['notifications'];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<int> getUnreadCount() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/notifications/unread-count'),
+        headers: await _authHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['count'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  static Future<void> markNotificationRead(String id) async {
+    try {
+      await http.patch(
+        Uri.parse('$baseUrl/api/notifications/$id/read'),
+        headers: await _authHeaders(),
+      );
+    } catch (_) {}
+  }
+
+  static Future<void> markAllNotificationsRead() async {
+    try {
+      await http.patch(
+        Uri.parse('$baseUrl/api/notifications/read-all'),
+        headers: await _authHeaders(),
+      );
+    } catch (_) {}
+  }
+
+  // ─── Host Earnings (friend's feature) ─────────────────────────────
+  static Future<Map<String, dynamic>> getHostEarnings() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/earnings/my'),
+        headers: await _authHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> requestWithdrawal({
     required double amount,
     required String bankName,
@@ -314,31 +348,6 @@ class ApiService {
           'accountNumber': accountNumber,
           'accountName': accountName,
         }),
-=======
-  // Accept booking (Host)
-  static Future<Map<String, dynamic>> acceptBooking(String id) async {
-    try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/api/bookings/$id/confirm'),
-        headers: await _authHeaders(),
->>>>>>> 641a76f693e38f5bbea56ee5ec121804e9ed69c2
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
-    }
-  }
-<<<<<<< HEAD
-}
-=======
-
-  //reject booking (Host)
-
-  static Future<Map<String, dynamic>> rejectBooking(String id) async {
-    try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/api/bookings/$id/reject'),
-        headers: await _authHeaders(),
       );
       return jsonDecode(response.body);
     } catch (e) {
@@ -346,4 +355,3 @@ class ApiService {
     }
   }
 }
->>>>>>> 641a76f693e38f5bbea56ee5ec121804e9ed69c2
