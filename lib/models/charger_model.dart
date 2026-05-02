@@ -6,6 +6,7 @@ class ChargerModel {
   final double longitude;
   final double pricePerKwh;
   final double powerKw;
+  final bool manualAcceptance;
   final String chargerType;
   final bool isAvailable;
   final String ownerName;
@@ -19,6 +20,7 @@ class ChargerModel {
     required this.longitude,
     required this.pricePerKwh,
     required this.powerKw,
+    required this.manualAcceptance,
     required this.chargerType,
     required this.isAvailable,
     required this.ownerName,
@@ -39,6 +41,7 @@ class ChargerModel {
       isAvailable: json['isAvailable'] ?? true,
       ownerName: json['ownerName'] ?? '',
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      manualAcceptance: json['manualAcceptance'] ?? false,
     );
   }
 

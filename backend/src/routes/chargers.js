@@ -78,4 +78,17 @@ router.post('/seed', async (req, res) => {
   }
 });
 
+
+router.patch('/:id/manual-acceptance', auth, async (req, res) => {
+  try {
+    const charger = await Charger.findById(req.params.id);
+    if (!charger) return res.status(404).json({ success: false, message: 'Not found' });
+    if (charger.ownerId !== req.user.userId) return res.status(403).json({ success: false, message: 'Not your charger' });
+    charger.manualAcceptance = !charger.manualAcceptance;
+    await charger.save();
+    res.json({ success: true, charger });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
 module.exports = router;

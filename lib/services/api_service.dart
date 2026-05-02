@@ -364,4 +364,16 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> toggleManualAcceptance(String id) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/chargers/$id/manual-acceptance'),
+        headers: await _authHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
 }

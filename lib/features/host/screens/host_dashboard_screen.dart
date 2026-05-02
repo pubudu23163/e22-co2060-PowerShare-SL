@@ -58,6 +58,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
     } else {
       _showSnack('Failed to update availability', isError: true);
     }
+    
   }
 
   Future<void> _deleteCharger(ChargerModel charger) async {
@@ -76,6 +77,30 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red, foregroundColor: Colors.white),
             child: const Text('Delete'),
+          ),
+          // Available/Unavailable button-ට පහළින්:
+          Container(width: 1, height: 30, color: Colors.grey.shade200),
+          Expanded(
+            child: TextButton.icon(
+              onPressed: () async {
+                final result = await ApiService.toggleManualAcceptance(charger.id);
+                if (result['success'] == true) {
+                  _fetchMyChargers();
+                }
+              },
+              icon: Icon(
+                charger.manualAcceptance ? Icons.touch_app : Icons.auto_mode,
+                color: charger.manualAcceptance ? Colors.blue : Colors.grey,
+                size: 18,
+              ),
+              label: Text(
+                charger.manualAcceptance ? 'Manual' : 'Auto',
+                style: TextStyle(
+                  color: charger.manualAcceptance ? Colors.blue : Colors.grey,
+                  fontSize: 13,
+                ),
+              ),
+            ),
           ),
         ],
       ),
