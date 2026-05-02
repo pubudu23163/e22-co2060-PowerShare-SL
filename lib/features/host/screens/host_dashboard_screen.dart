@@ -6,6 +6,7 @@ import '../../../models/charger_model.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../auth/screens/role_selection_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
+import '../../wallet/screens/wallet_screen.dart';
 import 'add_charger_screen.dart';
 import 'host_bookings_screen.dart';
 
@@ -137,6 +138,11 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
               ),
           ]),
           // Switch role
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Earnings',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen(role: 'host'))),
+          ),
           IconButton(
             icon: const Icon(Icons.swap_horiz),
             tooltip: 'Switch Role',
