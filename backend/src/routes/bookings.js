@@ -178,7 +178,7 @@ router.patch('/:id/cancel', auth, async (req, res) => {
     if (booking.status === 'confirmed' && booking.hostId) {
       const hostEarning = parseFloat(((booking.totalPrice || 0) * 0.90).toFixed(2));
       await User.findByIdAndUpdate(booking.hostId, {
-        $inc: { walletBalance: -hostEarning }
+        $inc: {hostEarnings: hostEarning, hostWithdrawable: hostEarning}
       });
     }
 
