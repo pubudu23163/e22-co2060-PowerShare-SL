@@ -12,7 +12,6 @@ import '../../host/screens/add_charger_screen.dart';
 import '../../booking/screens/my_bookings_screen.dart';
 import '../../auth/screens/role_selection_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
-import '../../wallet/screens/wallet_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -194,11 +193,6 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ),
           ]),
-          IconButton(
-            icon: const Icon(Icons.receipt_long),
-            tooltip: 'My Wallet',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen(role: 'driver'))),
-          ),
           IconButton(
             icon: const Icon(Icons.receipt_long),
             tooltip: 'My Bookings',

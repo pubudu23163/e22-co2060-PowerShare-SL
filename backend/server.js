@@ -14,7 +14,6 @@ app.use('/api/earnings', require('./src/routes/earnings'));
 app.use('/api/chargers', require('./src/routes/chargers'));
 app.use('/api/bookings', require('./src/routes/bookings'));
 app.use('/api/wallet', require('./src/routes/wallet'));
-app.use('/api/wallet', require('./src/routes/wallet'));
 app.use('/api/notifications', require('./src/routes/notifications'));
 // Routes-ට add කරන්න:
 app.use('/api/admin', require('./src/routes/admin').router);
@@ -42,3 +41,4 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch((err) => {
     console.error('❌ MongoDB Connection Error:', err);
   });
+
