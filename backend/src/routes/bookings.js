@@ -4,128 +4,201 @@ const Booking = require('../models/Booking');
 const Charger = require('../models/Charger');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { createNotification } = require('../services/notificationService');
 
-function parseDateTime(dateStr, timeStr) {
-  try {
-    const [day, month, year] = dateStr.split('/').map(Number);
-    const [timePart, meridiem] = timeStr.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem === 'PM' && hours !== 12) hours += 12;
-    if (meridiem === 'AM' && hours === 12) hours = 0;
-    return new Date(year, month - 1, day, hours, minutes || 0);
-  } catch (e) { return null; }
-}
-
-async function hasClash(chargerId, startDT, endDT, excludeBookingId = null) {
-  const query = {
-    chargerId,
-    status: { $in: ['pending_confirmation', 'confirmed'] },
-    startDateTime: { $lt: endDT },
-    endDateTime: { $gt: startDT },
-  };
-  if (excludeBookingId) query._id = { $ne: excludeBookingId };
-  return await Booking.findOne(query);
-}
-
+// ── Create booking ────────────────────────────────────────────────
 router.post('/', auth, async (req, res) => {
   try {
-    const { chargerId, date, time, durationHours } = req.body;
-    const charger = await Charger.findById(chargerId);
+    const charger = await Charger.findById(req.body.chargerId);
     if (!charger) return res.status(404).json({ success: false, message: 'Charger not found' });
-    if (!charger.isAvailable) return res.status(400).json({ success: false, message: 'Charger is not available' });
-    const startDT = parseDateTime(date, time);
-    if (!startDT) return res.status(400).json({ success: false, message: 'Invalid date/time format' });
-    const endDT = new Date(startDT.getTime() + durationHours * 60 * 60 * 1000);
-    const clash = await hasClash(chargerId, startDT, endDT);
-    if (clash) {
-      return res.status(409).json({
-        success: false,
-        message: `This charger is already booked from ${clash.time} for ${clash.durationHours}hr(s) on ${clash.date}.`,
-      });
-    }
+
+    const isManual = charger.manualAcceptance === true;
+    const status = isManual ? 'pending' : 'confirmed';
+
     const booking = new Booking({
       ...req.body,
       userId: req.user.userId,
       userName: req.user.name,
       userEmail: req.user.email,
-      hostId: charger.ownerId || null,
-      startDateTime: startDT,
-      endDateTime: endDT,
-      status: 'pending_confirmation',
-      paymentStatus: 'held',
+      hostId: charger.ownerId ? charger.ownerId.toString() : null,
+      status,
+      expiresAt: isManual ? new Date(Date.now() + 60 * 60 * 1000) : null,
     });
     await booking.save();
-    res.json({ success: true, booking });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+
+    // ✅ Auto-confirmed → update host wallet immediately
+    if (!isManual && charger.ownerId) {
+      const hostEarning = parseFloat(((req.body.totalPrice || 0) * 0.90).toFixed(2));
+      console.log(`Auto-confirm: updating wallet for host ${charger.ownerId}, earning: ${hostEarning}`);
+      const updatedUser = await User.findByIdAndUpdate(
+        charger.ownerId.toString(),
+        { $inc: { walletBalance: hostEarning, totalEarned: hostEarning } },
+        { new: true }
+      );
+      console.log(`Host wallet updated: ${updatedUser ? updatedUser.walletBalance : 'user not found'}`);
+    }
+
+    // Notifications
+    if (isManual) {
+      if (charger.ownerId) {
+        await createNotification({
+          userId: charger.ownerId.toString(),
+          title: '⏳ New Booking Request!',
+          message: `${req.user.name} wants to book "${charger.name}" — ${req.body.date} at ${req.body.time}. Accept or reject within 1 hour.`,
+          type: 'booking',
+          data: { bookingId: booking._id },
+        });
+      }
+      await createNotification({
+        userId: req.user.userId,
+        title: '⏳ Booking Pending',
+        message: `"${charger.name}" booking sent. Waiting for host approval.`,
+        type: 'booking',
+        data: { bookingId: booking._id },
+      });
+    } else {
+      if (charger.ownerId) {
+        await createNotification({
+          userId: charger.ownerId.toString(),
+          title: '💰 Booking + Rs.' + Math.floor((req.body.totalPrice || 0) * 0.90) + ' Earned!',
+          message: `${req.user.name} booked "${charger.name}". Rs.${Math.floor((req.body.totalPrice||0)*0.90)} added to your wallet!`,
+          type: 'booking',
+          data: { bookingId: booking._id },
+        });
+      }
+      await createNotification({
+        userId: req.user.userId,
+        title: '✅ Booking Confirmed!',
+        message: `"${charger.name}" — ${req.body.date} at ${req.body.time} — Rs.${req.body.totalPrice}`,
+        type: 'confirmation',
+        data: { bookingId: booking._id },
+      });
+    }
+
+    res.json({ success: true, booking, isManual });
+  } catch (e) {
+    console.error('Create booking error:', e);
+    res.status(500).json({ success: false, message: e.message });
   }
 });
 
+// ── Get my bookings (driver) ──────────────────────────────────────
 router.get('/my', auth, async (req, res) => {
   try {
     const bookings = await Booking.find({ userId: req.user.userId }).sort({ createdAt: -1 });
     res.json({ success: true, bookings });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
+// ── Get received bookings (host) ──────────────────────────────────
 router.get('/received', auth, async (req, res) => {
   try {
     const myChargers = await Charger.find({ ownerId: req.user.userId });
-    const myChargerIds = myChargers.map(c => c._id.toString());
-    const bookings = await Booking.find({ chargerId: { $in: myChargerIds } }).sort({ createdAt: -1 });
+    const ids = myChargers.map(c => c._id.toString());
+    const bookings = await Booking.find({ chargerId: { $in: ids } }).sort({ createdAt: -1 });
     res.json({ success: true, bookings });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
-router.patch('/:id/confirm', auth, async (req, res) => {
+// ── Accept booking ────────────────────────────────────────────────
+router.patch('/:id/accept', auth, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-    if (booking.hostId !== req.user.userId) return res.status(403).json({ success: false, message: 'Not your charger booking' });
-    if (booking.status !== 'pending_confirmation') return res.status(400).json({ success: false, message: `Booking already ${booking.status}` });
+    if (!booking) return res.status(404).json({ success: false, message: 'Not found' });
+    if (booking.hostId !== req.user.userId)
+      return res.status(403).json({ success: false, message: 'Not your booking' });
+
     booking.status = 'confirmed';
-    booking.paymentStatus = 'released';
+    booking.expiresAt = null;
     await booking.save();
-    const hostEarnings = booking.totalPrice * 0.95;
-    await User.findByIdAndUpdate(booking.hostId, {
-      $inc: { hostEarnings: hostEarnings, hostWithdrawable: hostEarnings },
+
+    // ✅ Update host wallet on accept
+    const hostEarning = parseFloat(((booking.totalPrice || 0) * 0.90).toFixed(2));
+    console.log(`Accept: updating wallet for ${req.user.userId}, earning: ${hostEarning}`);
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { $inc: { walletBalance: hostEarning, totalEarned: hostEarning } },
+      { new: true }
+    );
+    console.log(`Wallet after accept: ${updatedUser ? updatedUser.walletBalance : 'not found'}`);
+
+    await createNotification({
+      userId: booking.userId,
+      title: '✅ Booking Accepted!',
+      message: `Your booking for "${booking.chargerName}" on ${booking.date} at ${booking.time} has been accepted!`,
+      type: 'confirmation',
+      data: { bookingId: booking._id },
     });
-    res.json({ success: true, booking, message: 'Booking confirmed! Payment released.' });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+
+    res.json({ success: true, booking, hostEarning });
+  } catch (e) {
+    console.error('Accept error:', e);
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
+// ── Reject booking ────────────────────────────────────────────────
 router.patch('/:id/reject', auth, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-    if (booking.hostId !== req.user.userId) return res.status(403).json({ success: false, message: 'Not your charger booking' });
-    if (booking.status !== 'pending_confirmation') return res.status(400).json({ success: false, message: `Booking already ${booking.status}` });
-    booking.status = 'rejected';
-    booking.paymentStatus = 'refunded';
+    if (!booking) return res.status(404).json({ success: false, message: 'Not found' });
+    if (booking.hostId !== req.user.userId)
+      return res.status(403).json({ success: false, message: 'Not your booking' });
+
+    booking.status = 'cancelled';
+    booking.cancelReason = req.body.reason || 'Rejected by host';
     await booking.save();
-    res.json({ success: true, booking, message: 'Booking rejected. Payment refunded.' });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+
+    await createNotification({
+      userId: booking.userId,
+      title: '❌ Booking Rejected',
+      message: `Sorry, your booking for "${booking.chargerName}" on ${booking.date} was rejected.`,
+      type: 'cancelled',
+      data: { bookingId: booking._id },
+    });
+
+    res.json({ success: true, booking });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
+// ── Cancel booking (driver) ───────────────────────────────────────
 router.patch('/:id/cancel', auth, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-    if (booking.userId !== req.user.userId) return res.status(403).json({ success: false, message: 'Not your booking' });
-    if (!['pending_confirmation', 'confirmed'].includes(booking.status)) return res.status(400).json({ success: false, message: `Cannot cancel a ${booking.status} booking` });
-    const now = new Date();
-    const isBeforeStart = booking.startDateTime && booking.startDateTime > now;
-    if (booking.status === 'confirmed' && isBeforeStart) {
-      const hostEarnings = booking.totalPrice * 0.95;
+    if (!booking) return res.status(404).json({ success: false, message: 'Not found' });
+    if (booking.userId !== req.user.userId)
+      return res.status(403).json({ success: false, message: 'Not your booking' });
+
+    if (booking.status === 'confirmed' && booking.hostId) {
+      const hostEarning = parseFloat(((booking.totalPrice || 0) * 0.90).toFixed(2));
       await User.findByIdAndUpdate(booking.hostId, {
-        $inc: { hostEarnings: -hostEarnings, hostWithdrawable: -hostEarnings },
+        $inc: { walletBalance: -hostEarning }
       });
     }
+
     booking.status = 'cancelled';
-    booking.paymentStatus = isBeforeStart ? 'refunded' : 'released';
     await booking.save();
-    res.json({ success: true, booking, message: isBeforeStart ? 'Cancelled. Full refund.' : 'Cancelled. No refund.' });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+
+    if (booking.hostId) {
+      await createNotification({
+        userId: booking.hostId,
+        title: '❌ Booking Cancelled',
+        message: `${booking.userName} cancelled the booking for ${booking.date}`,
+        type: 'cancelled',
+        data: { bookingId: booking._id },
+      });
+    }
+
+    res.json({ success: true, booking });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
 module.exports = router;
