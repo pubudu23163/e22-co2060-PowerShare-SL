@@ -90,7 +90,7 @@ router.patch('/:id/confirm', auth, async (req, res) => {
 
     // ✅ Host earnings — 95% after 5% platform fee
     const hostEarnings = booking.totalPrice * 0.95;
-    await User.findByIdAndUpdate(booking.hostId, {
+    await User.findOneAndUpdate({ googleId: booking.hostId }, {
       $inc: { hostEarnings: hostEarnings, hostWithdrawable: hostEarnings },
     });
 
@@ -126,7 +126,7 @@ router.patch('/:id/cancel', auth, async (req, res) => {
     // Deduct from host earnings if confirmed + cancelled before start
     if (booking.status === 'confirmed' && isBeforeStart) {
       const hostEarnings = booking.totalPrice * 0.95;
-      await User.findByIdAndUpdate(booking.hostId, {
+      await User.findOneAndUpdate({ googleId: booking.hostId }, {
         $inc: { hostEarnings: -hostEarnings, hostWithdrawable: -hostEarnings },
       });
     }

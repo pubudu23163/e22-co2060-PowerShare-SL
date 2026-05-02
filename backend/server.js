@@ -9,8 +9,6 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', require('./src/routes/auth'));
-app.use('/api/earnings', require('./src/routes/earnings'));
-
 app.use('/api/chargers', require('./src/routes/chargers'));
 app.use('/api/bookings', require('./src/routes/bookings'));
 app.use('/api/wallet', require('./src/routes/wallet'));
@@ -41,4 +39,5 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch((err) => {
     console.error('❌ MongoDB Connection Error:', err);
   });
+
 
