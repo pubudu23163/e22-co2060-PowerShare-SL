@@ -11,6 +11,8 @@ app.use(express.json());
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/chargers', require('./src/routes/chargers'));
 app.use('/api/bookings', require('./src/routes/bookings'));
+app.use('/api/wallet', require('./src/routes/wallet'));
+app.use('/api/wallet', require('./src/routes/wallet'));
 app.use('/api/notifications', require('./src/routes/notifications'));
 // Routes-ට add කරන්න:
 app.use('/api/admin', require('./src/routes/admin').router);
