@@ -176,7 +176,7 @@ class _WalletScreenState extends State<WalletScreen>
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               Navigator.pop(context);
-              final result = await ApiService.withdraw(
+              final result = await ApiService.withdrawEarnings(
                 amount: double.parse(amountCtrl.text),
                 bankName: bankCtrl.text,
                 accountNumber: accCtrl.text,

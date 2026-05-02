@@ -275,6 +275,53 @@ class ApiService {
       return [];
     }
   }
+  static Future<Map<String, dynamic>> getWallet() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/wallet'),
+        headers: await _authHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false};
+    }
+  }
+
+  static Future<Map<String, dynamic>> topUpWallet(double amount) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/wallet/topup'),
+        headers: await _authHeaders(),
+        body: jsonEncode({'amount': amount}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> withdrawEarnings({
+    required double amount,
+    required String bankName,
+    required String accountNumber,
+    required String accountName,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/wallet/withdraw'),
+        headers: await _authHeaders(),
+        body: jsonEncode({
+          'amount': amount,
+          'bankName': bankName,
+          'accountNumber': accountNumber,
+          'accountName': accountName,
+        }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network error'};
+    }
+  }
 
   static Future<Map<String, dynamic>> cancelBooking(String id) async {
     try {
