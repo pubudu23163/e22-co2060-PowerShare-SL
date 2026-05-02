@@ -102,5 +102,33 @@ router.delete('/users/:id', adminAuth, async (req, res) => {
     res.status(500).json({ success: false, message: e.message });
   }
 });
+// Recalculate host earnings from confirmed bookings
+router.post('/recalculate-earnings', adminAuth, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ 
+      status: 'confirmed', 
+      paymentStatus: 'released' 
+    });
+    
+    // Group by hostId
+    const earnings = {};
+    for (const b of bookings) {
+      if (!b.hostId) continue;
+      if (!earnings[b.hostId]) earnings[b.hostId] = 0;
+      earnings[b.hostId] += b.totalPrice * 0.95;
+    }
+    
+    // Update each host
+    for (const [hostId, amount] of Object.entries(earnings)) {
+      await User.findByIdAndUpdate(hostId, {
+        $set: { hostEarnings: amount, hostWithdrawable: amount }
+      });
+    }
+    
+    res.json({ success: true, message: 'Earnings recalculated!', earnings });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
 
 module.exports = { router, adminAuth };
