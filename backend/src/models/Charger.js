@@ -10,7 +10,9 @@ const chargerSchema = new mongoose.Schema({
   isAvailable:  { type: Boolean, default: true },
   ownerName:    { type: String, required: true },
   ownerId:      { type: String },
-  rating:       { type: Number, default: 0 },
+  rating: { type: Number, default: 0 },
+  manualAcceptance: { type: Boolean, default: false },
   createdAt:    { type: Date, default: Date.now },
 });
 module.exports = mongoose.model('Charger', chargerSchema);
+

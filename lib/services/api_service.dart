@@ -197,6 +197,7 @@ class ApiService {
     required double powerKw,
     required String ownerName,
     required bool isAvailable,
+    required bool manualAcceptance,
   }) async {
     try {
       final response = await http.post(
@@ -211,6 +212,7 @@ class ApiService {
           'powerKw': powerKw,
           'ownerName': ownerName,
           'isAvailable': isAvailable,
+          'manualAcceptance': manualAcceptance,
         }),
       );
       final data = jsonDecode(response.body);

@@ -20,6 +20,7 @@ class _AddChargerScreenState extends State<AddChargerScreen> {
   final _lngController = TextEditingController();
 
   bool _isAvailable = true;
+  bool _manualAcceptance = false; 
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
 
@@ -110,6 +111,7 @@ class _AddChargerScreenState extends State<AddChargerScreen> {
       powerKw: _selectedPowerKw,
       ownerName: _ownerNameController.text.trim(),
       isAvailable: _isAvailable,
+      manualAcceptance: _manualAcceptance,
     );
 
     setState(() => _isSubmitting = false);
@@ -457,6 +459,37 @@ class _AddChargerScreenState extends State<AddChargerScreen> {
                 ),
               ),
               const SizedBox(height: 32),
+
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade200),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SwitchListTile(
+                  title: Text(
+                    _manualAcceptance ? 'Manual Acceptance ON' : 'Auto Confirm',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: _manualAcceptance ? Colors.blue : Colors.green,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _manualAcceptance
+                        ? 'ඔබ manually booking confirm කරනවා'
+                        : 'Bookings automatically confirmed',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  value: _manualAcceptance,
+                  activeColor: Colors.blue,
+                  onChanged: (val) => setState(() => _manualAcceptance = val),
+                  secondary: Icon(
+                    _manualAcceptance ? Icons.touch_app : Icons.auto_mode,
+                    color: _manualAcceptance ? Colors.blue : Colors.green,
+                  ),
+                ),
+              ),
 
               // Submit
               SizedBox(
