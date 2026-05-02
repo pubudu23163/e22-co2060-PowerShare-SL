@@ -341,7 +341,7 @@ class ApiService {
   static Future<Map<String, dynamic>> acceptBooking(String id) async {
     try {
       final response = await http.patch(
-        Uri.parse('$baseUrl/api/bookings/$id/confirm'),
+        Uri.parse('$baseUrl/api/bookings/$id/accept'),
         headers: await _authHeaders(),
       );
       return jsonDecode(response.body);

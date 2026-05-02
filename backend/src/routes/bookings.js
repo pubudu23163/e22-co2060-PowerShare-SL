@@ -13,7 +13,7 @@ router.post('/', auth, async (req, res) => {
     if (!charger) return res.status(404).json({ success: false, message: 'Charger not found' });
 
     const isManual = charger.manualAcceptance === true;
-    const status = isManual ? 'pending' : 'confirmed';
+    const status = isManual ? 'pending_confirmation' : 'confirmed';
 
     const booking = new Booking({
       ...req.body,
@@ -32,7 +32,7 @@ router.post('/', auth, async (req, res) => {
       console.log(`Auto-confirm: updating wallet for host ${charger.ownerId}, earning: ${hostEarning}`);
       const updatedUser = await User.findByIdAndUpdate(
         charger.ownerId.toString(),
-        { $inc: { walletBalance: hostEarning, totalEarned: hostEarning } },
+        { $inc: { hostEarnings: hostEarning, hostWithdrawable: hostEarning } },
         { new: true }
       );
       console.log(`Host wallet updated: ${updatedUser ? updatedUser.walletBalance : 'user not found'}`);
@@ -51,7 +51,7 @@ router.post('/', auth, async (req, res) => {
       }
       await createNotification({
         userId: req.user.userId,
-        title: '⏳ Booking Pending',
+        title: '⏳ Booking pending_confirmation',
         message: `"${charger.name}" booking sent. Waiting for host approval.`,
         type: 'booking',
         data: { bookingId: booking._id },
@@ -121,7 +121,7 @@ router.patch('/:id/accept', auth, async (req, res) => {
     console.log(`Accept: updating wallet for ${req.user.userId}, earning: ${hostEarning}`);
     const updatedUser = await User.findByIdAndUpdate(
       req.user.userId,
-      { $inc: { walletBalance: hostEarning, totalEarned: hostEarning } },
+      { $inc: { hostEarnings: hostEarning, hostWithdrawable: hostEarning } },
       { new: true }
     );
     console.log(`Wallet after accept: ${updatedUser ? updatedUser.walletBalance : 'not found'}`);
