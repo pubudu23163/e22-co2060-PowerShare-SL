@@ -1,37 +1,32 @@
 {
-    "team": [
-        {
-            "name": "H.M.P.D.B.Herath",
-            "email": "e22141@eng.pdn.ac.lk",
-            "eNumber": "E/22/141"
-        },
-        {
-            "name": "H.M.P.M.Herath",
-            "email": "e22142@eng.pdn.ac.lk",
-            "eNumber": "E/22/142"
-        },
-        {
-            "name": "N.W.A.K.B.Neelawathura",
-            "email": "e22248@eng.pdn.ac.lk",
-            "eNumber": "E/22/248"
-        },
-        {
-            "name": "W.A.H.Sathsarani",
-            "email": "e22362@eng.pdn.ac.lk",
-            "eNumber": "E/22/362"
-        }
-    ],
-    "supervisors": [
-        {
-            "name": "Dr. Supervisor 1",
-            "email": "email@eng.pdn.ac.lk"
-        },
-        {
-            "name": "Supervisor 2",
-            "email": "email@eng.pdn.ac.lk"
-        }
-    ],
-    "tags": ["Web", "Software Systems", "CO2060"],
-    "image":"cover_page.jpg",
-    "thumbnail":"thumbnail.jpg"
+  "title": "PowerShare SL — P2P EV Charging Marketplace",
+  "team": [
+    {
+      "name": "Pubudu Madusanka Herath",
+      "email": "e22142@eng.pdn.ac.lk",
+      "eNumber": "E/22/142"
+    },
+    {
+      "name": "Dulanjaya Herath",
+      "email": "e22141@eng.pdn.ac.lk",
+      "eNumber": "E/22/141"
+    },
+    {
+      "name": "Himasha Sathsarani",
+      "email": "e22362@eng.pdn.ac.lk",
+      "eNumber": "E/22/362"
+    },
+    {
+      "name": "Akash",
+      "email": "e22248@eng.pdn.ac.lk",
+      "eNumber": "E/22/248"
+    }
+  ],
+  "supervisors": [
+    {
+      "name": "Supervisor",
+      "email": "supervisor@eng.pdn.ac.lk"
+    }
+  ],
+  "tags": ["Mobile", "Flutter", "Node.js", "MongoDB", "EV Charging", "P2P", "Software Systems", "CO2060"]
 }
